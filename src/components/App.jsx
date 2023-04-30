@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { fetchAPI } from 'api/api';
 
 import { AppBox } from './App.styled';
@@ -9,104 +9,87 @@ import { Button } from './Button/Button';
 import { ModalWindow } from './ModalWindow/ModalWindow';
 import { Loader } from './Loader/Loader';
 
-class App extends Component {
-  state = {
-    images: [],
-    searchWord: '',
-    page: 1,
-    total: 1,
-    largeImageURL: '',
-    imageTags: '',
-    loading: false,
-    error: '',
-  };
+const App = () => {
+  const [images, setImages] = useState([]);
+  const [searchWord, setSearchWord] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(1);
+  const [largeImageURL, setLargeImageURL] = useState('');
+  const [imageTags, setImageTags] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  componentDidUpdate(prevProps, prevState) {
-    const { searchWord, page } = this.state;
-
-    if (prevState.searchWord !== searchWord || prevState.page !== page) {
-      this.fetchPhotos(searchWord, page);
-    }
-  }
-
-  onSubmitForm = searchQuery => {
-    if (!searchQuery) return;
-    this.setState({
-      searchWord: searchQuery,
-      images: [],
-      page: 1,
-    });
-  };
-
-  fetchPhotos = async (searchWord, page) => {
+  const fetchPhotos = async (searchWord, page) => {
     try {
-      this.setState({ loading: true, error: null });
+      setLoading(true);
+      setError(null);
+
       const fetchedPhotos = await fetchAPI(searchWord, page);
 
-      this.setState(prevState => ({
-        images: [...prevState.images, ...fetchedPhotos.hits],
-        total: fetchedPhotos.totalHits,
-      }));
+      setImages(prevImages => [...prevImages, ...fetchedPhotos.hits]);
+      setTotal(fetchedPhotos.totalHits);
     } catch (error) {
-      this.setState({
-        error: 'An error occurred, please try again later...',
-      });
+      setError('An error occurred, please try again later...');
     } finally {
-      this.setState({ loading: false });
+      setLoading(false);
     }
   };
 
-  onLoadMore = () => {
-    this.setState(prevPage => ({
-      page: prevPage.page + 1,
-    }));
+  useEffect(() => {
+    if (!searchWord) {
+      return;
+    }
+    fetchPhotos(searchWord, page);
+  }, [page, searchWord]);
+
+  const onSubmitForm = searchQuery => {
+    if (!searchQuery) return;
+
+    setSearchWord(searchQuery);
+    setImages([]);
+    setPage(1);
   };
 
-  toggleModal = (largeImage = '', tags = '') => {
-    this.setState(() => {
-      return {
-        largeImageURL: largeImage,
-        imageTags: tags,
-      };
-    });
+  const onLoadMore = () => {
+    setPage(page => page + 1);
   };
 
-  render() {
-    const { loading, images, error, total, page, largeImageURL, imageTags } =
-      this.state;
+  const toggleModal = (largeImage = '', tags = '') => {
+    setLargeImageURL(largeImage);
+    setImageTags(tags);
+  };
 
-    return (
-      <>
-        <AppBox>
-          <Searchbar onSubmit={this.onSubmitForm} />
+  return (
+    <>
+      <AppBox>
+        <Searchbar onSubmit={onSubmitForm} />
 
-          <ImageGallery>
-            <ImageGalleryItem images={images} toggleModal={this.toggleModal} />
-          </ImageGallery>
+        <ImageGallery>
+          <ImageGalleryItem images={images} toggleModal={toggleModal} />
+        </ImageGallery>
 
-          {error && <h2>{error}</h2>}
+        {error && <h2>{error}</h2>}
 
-          {total === 0 && (
-            <h2 style={{ textAlign: 'center' }}>Sorry, nothing was found...</h2>
-          )}
-
-          {total / 12 > page && !loading && (
-            <Button text="Load more" onClick={this.onLoadMore} />
-          )}
-        </AppBox>
-
-        {loading && <Loader />}
-
-        {largeImageURL && (
-          <ModalWindow
-            imageURL={largeImageURL}
-            imageTags={imageTags}
-            toggleModal={this.toggleModal}
-          />
+        {total === 0 && (
+          <h2 style={{ textAlign: 'center' }}>Sorry, nothing was found...</h2>
         )}
-      </>
-    );
-  }
-}
+
+        {total / 12 > page && !loading && (
+          <Button text="Load more" onClick={onLoadMore} />
+        )}
+      </AppBox>
+
+      {loading && <Loader />}
+
+      {largeImageURL && (
+        <ModalWindow
+          imageURL={largeImageURL}
+          imageTags={imageTags}
+          toggleModal={toggleModal}
+        />
+      )}
+    </>
+  );
+};
 
 export default App;
